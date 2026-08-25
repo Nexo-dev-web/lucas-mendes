@@ -178,23 +178,10 @@
   .leaflet-popup-content { font-size: 13px; line-height: 1.5; margin: 10px 12px; }
   .leaflet-popup-content b { font-size: 14px; }
 
-  .vm-icon { position: relative; width: 26px; height: 26px; }
   .vm-dot {
-    position: absolute; left: 50%; top: 50%;
-    transform: translate(-50%, -50%);
     width: 14px; height: 14px; border-radius: 50%;
     border: 2px solid #0b1120;
     box-shadow: 0 0 0 1px rgba(255,255,255,0.5), 0 0 10px rgba(0,0,0,0.4);
-  }
-  .vm-arrow {
-    position: absolute; left: 50%; top: 50%;
-    width: 0; height: 0;
-    margin-left: -6px; margin-top: -19px;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 13px solid;
-    transform-origin: 6px 19px;
-    filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
   }
 
   .toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -429,14 +416,19 @@
   }
 
   function vehicleIcon(color, course, moving) {
-    const arrow = moving
-      ? `<div class="vm-arrow" style="border-bottom-color:${color}; transform: rotate(${course || 0}deg);"></div>`
-      : '';
+    if (moving) {
+      const svg = `
+        <svg width="30" height="30" viewBox="0 0 28 28"
+             style="transform: rotate(${course || 0}deg); filter: drop-shadow(0 1px 4px rgba(0,0,0,0.55));">
+          <path d="M14 1.5 L23 23 L14 18 L5 23 Z" fill="${color}" stroke="#0b1120" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>`;
+      return L.divIcon({ className: '', html: svg, iconSize: [30, 30], iconAnchor: [15, 15] });
+    }
     return L.divIcon({
       className: '',
-      html: `<div class="vm-icon">${arrow}<div class="vm-dot" style="background:${color}"></div></div>`,
-      iconSize: [26, 26],
-      iconAnchor: [13, 13]
+      html: `<div class="vm-dot" style="background:${color}"></div>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9]
     });
   }
 
