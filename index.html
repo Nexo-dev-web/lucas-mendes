@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RRJ Rastreadores — Teste de Integração</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   :root {
     --bg-1: #0b1120;
@@ -160,6 +161,23 @@
   }
   .toolbar .left { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 13px; }
 
+  #map {
+    height: 420px;
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid var(--card-border);
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .leaflet-popup-content-wrapper {
+    background: #141d33;
+    color: var(--text);
+    border-radius: 10px;
+  }
+  .leaflet-popup-tip { background: #141d33; }
+  .leaflet-popup-content { font-size: 13px; line-height: 1.5; margin: 10px 12px; }
+  .leaflet-popup-content b { font-size: 14px; }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -242,6 +260,25 @@
     color: var(--text-dim);
     line-height: 1.6;
   }
+  .credit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    text-decoration: none;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 4px 10px;
+    border-radius: 8px;
+    transition: background .15s, color .15s;
+  }
+  .credit:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+  .credit img { height: 20px; width: auto; opacity: 0.9; }
+  .credit b { color: #b9c2db; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -293,9 +330,12 @@
         </div>
         <div style="display:flex; gap:10px;">
           <button class="ghost" onclick="loadData()">↻ Atualizar</button>
+          <button class="ghost" onclick="fitMapToMarkers()">🎯 Centralizar mapa</button>
           <button class="ghost" onclick="logout()">Sair</button>
         </div>
       </div>
+
+      <div id="map"></div>
 
       <div id="grid" class="grid"></div>
     </div>
@@ -303,12 +343,87 @@
   </div>
 
   <footer class="disclaimer">
+    <a class="credit" href="https://portfolio-nexo.netlify.app/" target="_blank" rel="noopener">
+      <img src="image/nexo-logo.png" alt="Nexo Developer" />
+      Desenvolvido por <b>Nexo Developer</b>
+    </a>
     Ferramenta de teste local — não é um produto oficial da RRJ Rastreadores nem da Mega Soft Brasil.
   </footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   let SERVER = '';
   let AUTH_HEADER = '';
+  let map = null;
+  let markersById = {};
+  let mapFittedOnce = false;
+
+  function initMap() {
+    if (map) return;
+    map = L.map('map', { zoomControl: true }).setView([-22.9, -43.2], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+  }
+
+  function fitMapToMarkers() {
+    const list = Object.values(markersById);
+    if (!list.length || !map) return;
+    const group = L.featureGroup(list);
+    map.fitBounds(group.getBounds().pad(0.25), { maxZoom: 16 });
+  }
+
+  function updateMapMarkers(devices, posByDevice) {
+    if (!map) return;
+    const seenIds = new Set();
+
+    devices.forEach(d => {
+      const pos = posByDevice[d.id];
+      if (!pos || pos.latitude == null || pos.longitude == null) return;
+
+      seenIds.add(d.id);
+      const st = statusInfo(d.status);
+      const color = st.cls === 'online' ? '#33d17a' : (st.cls === 'unknown' ? '#f5c542' : '#8a93ab');
+      const latLng = [pos.latitude, pos.longitude];
+
+      const popupHtml = `
+        <b>${escapeHtml(d.name || 'Sem nome')}</b><br/>
+        ${st.label} · ${knotsToKmh(pos.speed)} km/h<br/>
+        ${pos.address ? escapeHtml(pos.address) + '<br/>' : ''}
+        ${relativeTime(d.lastUpdate)}
+      `;
+
+      if (markersById[d.id]) {
+        markersById[d.id].setLatLng(latLng);
+        markersById[d.id].setStyle({ color, fillColor: color });
+        markersById[d.id].setPopupContent(popupHtml);
+      } else {
+        const marker = L.circleMarker(latLng, {
+          radius: 9,
+          color,
+          fillColor: color,
+          fillOpacity: 0.85,
+          weight: 2,
+          opacity: 1
+        }).addTo(map).bindPopup(popupHtml);
+        markersById[d.id] = marker;
+      }
+    });
+
+    // remove markers for devices that no longer have a position
+    Object.keys(markersById).forEach(id => {
+      if (!seenIds.has(Number(id))) {
+        map.removeLayer(markersById[id]);
+        delete markersById[id];
+      }
+    });
+
+    if (!mapFittedOnce && Object.keys(markersById).length) {
+      fitMapToMarkers();
+      mapFittedOnce = true;
+    }
+  }
 
   function showError(msg) {
     const box = document.getElementById('error-box');
@@ -353,7 +468,9 @@
       document.getElementById('dash').style.display = 'block';
       document.getElementById('stats').style.display = 'flex';
 
+      initMap();
       await loadData();
+      setTimeout(() => map && map.invalidateSize(), 50);
     } catch (err) {
       let msg = err.message || 'Falha ao conectar.';
       if (err.message === 'Failed to fetch') {
@@ -372,6 +489,9 @@
     document.getElementById('dash').style.display = 'none';
     document.getElementById('stats').style.display = 'none';
     document.getElementById('login-panel').style.display = 'block';
+    Object.values(markersById).forEach(m => map && map.removeLayer(m));
+    markersById = {};
+    mapFittedOnce = false;
   }
 
   function knotsToKmh(knots) {
@@ -413,6 +533,7 @@
 
       renderStats(devices);
       renderGrid(devices, posByDevice);
+      updateMapMarkers(devices, posByDevice);
 
       document.getElementById('last-update-label').textContent =
         'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
