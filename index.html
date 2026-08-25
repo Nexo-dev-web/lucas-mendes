@@ -178,6 +178,53 @@
   .leaflet-popup-content { font-size: 13px; line-height: 1.5; margin: 10px 12px; }
   .leaflet-popup-content b { font-size: 14px; }
 
+  .vm-icon { position: relative; width: 26px; height: 26px; }
+  .vm-dot {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid #0b1120;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.5), 0 0 10px rgba(0,0,0,0.4);
+  }
+  .vm-arrow {
+    position: absolute; left: 50%; top: 50%;
+    width: 0; height: 0;
+    margin-left: -6px; margin-top: -19px;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 13px solid;
+    transform-origin: 6px 19px;
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
+  }
+
+  .toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .vm-label {
+    background: rgba(11,17,32,0.9) !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    color: #e8ecf7 !important;
+    font-size: 11.5px !important;
+    font-weight: 600;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important;
+  }
+  .vm-label::before { display: none !important; }
+  .live-indicator {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--green);
+  }
+  .live-indicator .pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -190,8 +237,14 @@
     border-radius: 16px;
     padding: 18px;
     transition: transform .15s, border-color .15s;
+    animation: fadeInUp .35s ease both;
   }
   .veh-card:hover { transform: translateY(-3px); border-color: rgba(91,140,255,0.4); }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
   .veh-top {
     display: flex; align-items: flex-start; justify-content: space-between;
@@ -326,9 +379,10 @@
     <div id="dash">
       <div class="toolbar">
         <div class="left">
+          <span class="live-indicator"><span class="pulse"></span> Ao vivo</span>
           <span id="last-update-label">—</span>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div class="toolbar-actions">
           <button class="ghost" onclick="loadData()">↻ Atualizar</button>
           <button class="ghost" onclick="fitMapToMarkers()">🎯 Centralizar mapa</button>
           <button class="ghost" onclick="logout()">Sair</button>
@@ -374,6 +428,18 @@
     map.fitBounds(group.getBounds().pad(0.25), { maxZoom: 16 });
   }
 
+  function vehicleIcon(color, course, moving) {
+    const arrow = moving
+      ? `<div class="vm-arrow" style="border-bottom-color:${color}; transform: rotate(${course || 0}deg);"></div>`
+      : '';
+    return L.divIcon({
+      className: '',
+      html: `<div class="vm-icon">${arrow}<div class="vm-dot" style="background:${color}"></div></div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13]
+    });
+  }
+
   function updateMapMarkers(devices, posByDevice) {
     if (!map) return;
     const seenIds = new Set();
@@ -386,27 +452,31 @@
       const st = statusInfo(d.status);
       const color = st.cls === 'online' ? '#33d17a' : (st.cls === 'unknown' ? '#f5c542' : '#8a93ab');
       const latLng = [pos.latitude, pos.longitude];
+      const speed = knotsToKmh(pos.speed);
+      const moving = st.cls === 'online' && speed > 2;
+      const icon = vehicleIcon(color, pos.course, moving);
 
       const popupHtml = `
         <b>${escapeHtml(d.name || 'Sem nome')}</b><br/>
-        ${st.label} · ${knotsToKmh(pos.speed)} km/h<br/>
+        ${st.label} · ${speed} km/h ${moving ? '· em movimento' : ''}<br/>
         ${pos.address ? escapeHtml(pos.address) + '<br/>' : ''}
         ${relativeTime(d.lastUpdate)}
       `;
 
       if (markersById[d.id]) {
-        markersById[d.id].setLatLng(latLng);
-        markersById[d.id].setStyle({ color, fillColor: color });
+        animateMarkerTo(markersById[d.id], latLng, 900);
+        markersById[d.id].setIcon(icon);
         markersById[d.id].setPopupContent(popupHtml);
       } else {
-        const marker = L.circleMarker(latLng, {
-          radius: 9,
-          color,
-          fillColor: color,
-          fillOpacity: 0.85,
-          weight: 2,
-          opacity: 1
-        }).addTo(map).bindPopup(popupHtml);
+        const marker = L.marker(latLng, { icon })
+          .addTo(map)
+          .bindPopup(popupHtml)
+          .bindTooltip(d.name || 'Sem nome', {
+            permanent: true,
+            direction: 'right',
+            offset: [10, 0],
+            className: 'vm-label'
+          });
         markersById[d.id] = marker;
       }
     });
@@ -471,6 +541,7 @@
       initMap();
       await loadData();
       setTimeout(() => map && map.invalidateSize(), 50);
+      startAutoRefresh();
     } catch (err) {
       let msg = err.message || 'Falha ao conectar.';
       if (err.message === 'Failed to fetch') {
@@ -484,6 +555,7 @@
   }
 
   function logout() {
+    stopAutoRefresh();
     SERVER = ''; AUTH_HEADER = '';
     document.getElementById('password').value = '';
     document.getElementById('dash').style.display = 'none';
@@ -492,6 +564,34 @@
     Object.values(markersById).forEach(m => map && map.removeLayer(m));
     markersById = {};
     mapFittedOnce = false;
+  }
+
+  let autoRefreshTimer = null;
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    autoRefreshTimer = setInterval(loadData, 15000);
+  }
+  function stopAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+
+  function animateMarkerTo(marker, toLatLng, duration) {
+    const from = marker.getLatLng();
+    const to = L.latLng(toLatLng);
+    if (from.equals(to)) return;
+    const start = performance.now();
+    function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+    function step(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const e = ease(t);
+      marker.setLatLng([
+        from.lat + (to.lat - from.lat) * e,
+        from.lng + (to.lng - from.lng) * e
+      ]);
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
   }
 
   function knotsToKmh(knots) {
