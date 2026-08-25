@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RRJ Rastreadores — Teste de Integração</title>
+<style>
+  :root {
+    --bg-1: #0b1120;
+    --bg-2: #101a33;
+    --card: rgba(255,255,255,0.05);
+    --card-border: rgba(255,255,255,0.08);
+    --text: #e8ecf7;
+    --text-dim: #8a93ab;
+    --accent: #5b8cff;
+    --accent-2: #7c5bff;
+    --green: #33d17a;
+    --red: #ff5f6d;
+    --yellow: #f5c542;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Arial, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(91,140,255,0.20), transparent 60%),
+      radial-gradient(1000px 600px at 100% 0%, rgba(124,91,255,0.18), transparent 55%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-2));
+    color: var(--text);
+    padding: 32px 20px 60px;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  header.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .logo {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; box-shadow: 0 6px 20px rgba(91,140,255,0.35);
+  }
+  .brand h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  .brand p { margin: 2px 0 0; font-size: 12.5px; color: var(--text-dim); }
+
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; }
+  .stat-pill {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.gray { background: #5a6480; }
+
+  .card-panel {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 28px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  }
+
+  /* ---- Login form ---- */
+  #login-panel { max-width: 460px; margin: 40px auto 0; }
+  #login-panel h2 { margin: 0 0 4px; font-size: 20px; }
+  #login-panel .sub { color: var(--text-dim); font-size: 13.5px; margin: 0 0 24px; line-height: 1.5; }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 12.5px; color: var(--text-dim);
+    margin-bottom: 6px; letter-spacing: 0.02em;
+  }
+  .field input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+    background: rgba(0,0,0,0.25);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(91,140,255,0.18);
+  }
+
+  button.primary {
+    width: 100%;
+    padding: 13px 16px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .12s, box-shadow .12s, opacity .12s;
+    box-shadow: 0 10px 30px rgba(91,140,255,0.35);
+  }
+  button.primary:hover { transform: translateY(-1px); }
+  button.primary:disabled { opacity: 0.6; cursor: default; transform: none; }
+
+  button.ghost {
+    padding: 9px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--card-border);
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.ghost:hover { background: rgba(255,255,255,0.06); }
+
+  .error-box {
+    display: none;
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(255,95,109,0.12);
+    border: 1px solid rgba(255,95,109,0.35);
+    color: #ffb3ba;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .note {
+    margin-top: 22px;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    border-top: 1px solid var(--card-border);
+    padding-top: 16px;
+  }
+  .note b { color: #b9c2db; }
+
+  /* ---- Dashboard ---- */
+  #dash { display: none; }
+
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; gap: 12px; flex-wrap: wrap;
+  }
+  .toolbar .left { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 13px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .veh-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 18px;
+    transition: transform .15s, border-color .15s;
+  }
+  .veh-card:hover { transform: translateY(-3px); border-color: rgba(91,140,255,0.4); }
+
+  .veh-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .veh-name { font-size: 15.5px; font-weight: 600; margin: 0 0 3px; }
+  .veh-id { font-size: 11.5px; color: var(--text-dim); }
+
+  .badge {
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: inline-flex; align-items: center; gap: 5px;
+    white-space: nowrap;
+  }
+  .badge.online { background: rgba(51,209,122,0.15); color: var(--green); }
+  .badge.offline { background: rgba(90,100,128,0.25); color: #a3acc4; }
+  .badge.unknown { background: rgba(245,197,66,0.15); color: var(--yellow); }
+
+  .veh-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text-dim);
+    margin-top: 8px;
+  }
+  .veh-row .ic { width: 16px; text-align: center; opacity: 0.8; }
+  .veh-row b { color: var(--text); font-weight: 600; }
+
+  .veh-footer {
+    margin-top: 14px;
+    display: flex; justify-content: flex-end;
+  }
+  .map-link {
+    font-size: 12.5px;
+    color: var(--accent);
+    text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(91,140,255,0.35);
+  }
+  .map-link:hover { background: rgba(91,140,255,0.12); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.25);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer.disclaimer {
+    max-width: 1080px;
+    margin: 40px auto 0;
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header class="top">
+      <div class="brand">
+        <div class="logo">🚗</div>
+        <div>
+          <h1>RRJ Rastreadores — Teste</h1>
+          <p>Integração direta via API (Traccar)</p>
+        </div>
+      </div>
+      <div class="stats" id="stats" style="display:none;"></div>
+    </header>
+
+    <!-- LOGIN -->
+    <div id="login-panel" class="card-panel">
+      <h2>Conectar à plataforma</h2>
+      <p class="sub">Use o mesmo e-mail e senha que você usa para entrar no app/site da RRJ. As credenciais ficam só na memória do navegador — nada é salvo ou enviado para outro lugar além do próprio servidor da RRJ.</p>
+
+      <div class="field">
+        <label for="server">Servidor</label>
+        <input id="server" type="text" value="https://gps.rrjrastreadores.com.br" />
+      </div>
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" type="email" placeholder="seuemail@exemplo.com" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+
+      <button class="primary" id="btn-connect" onclick="connect()">Conectar</button>
+
+      <div class="error-box" id="error-box"></div>
+
+      <div class="note">
+        <b>Nota técnica:</b> essa página chama a API REST do Traccar (<code>/api/devices</code> e <code>/api/positions</code>) direto do seu navegador, usando autenticação HTTP Basic. Se o servidor bloquear requisições de outra origem (CORS), a conexão vai falhar mesmo com credenciais corretas — nesse caso a integração final precisa passar pelo backend do seu sistema em vez do navegador.
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dash">
+      <div class="toolbar">
+        <div class="left">
+          <span id="last-update-label">—</span>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="ghost" onclick="loadData()">↻ Atualizar</button>
+          <button class="ghost" onclick="logout()">Sair</button>
+        </div>
+      </div>
+
+      <div id="grid" class="grid"></div>
+    </div>
+
+  </div>
+
+  <footer class="disclaimer">
+    Ferramenta de teste local — não é um produto oficial da RRJ Rastreadores nem da Mega Soft Brasil.
+  </footer>
+
+<script>
+  let SERVER = '';
+  let AUTH_HEADER = '';
+
+  function showError(msg) {
+    const box = document.getElementById('error-box');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+  function hideError() {
+    document.getElementById('error-box').style.display = 'none';
+  }
+
+  async function connect() {
+    hideError();
+    const server = document.getElementById('server').value.trim().replace(/\/+$/, '');
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!server || !email || !password) {
+      showError('Preencha servidor, e-mail e senha.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-connect');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Conectando...';
+
+    SERVER = server;
+    AUTH_HEADER = 'Basic ' + btoa(email + ':' + password);
+
+    try {
+      const res = await fetch(SERVER + '/api/devices', {
+        headers: { 'Authorization': AUTH_HEADER, 'Accept': 'application/json' }
+      });
+
+      if (res.status === 401) {
+        throw new Error('E-mail ou senha incorretos (401).');
+      }
+      if (!res.ok) {
+        throw new Error('O servidor respondeu com erro ' + res.status + '.');
+      }
+
+      document.getElementById('login-panel').style.display = 'none';
+      document.getElementById('dash').style.display = 'block';
+      document.getElementById('stats').style.display = 'flex';
+
+      await loadData();
+    } catch (err) {
+      let msg = err.message || 'Falha ao conectar.';
+      if (err.message === 'Failed to fetch') {
+        msg = 'Não foi possível conectar ao servidor. Pode ser bloqueio de CORS, servidor fora do ar, ou sem internet — veja a nota técnica abaixo do formulário.';
+      }
+      showError(msg);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Conectar';
+    }
+  }
+
+  function logout() {
+    SERVER = ''; AUTH_HEADER = '';
+    document.getElementById('password').value = '';
+    document.getElementById('dash').style.display = 'none';
+    document.getElementById('stats').style.display = 'none';
+    document.getElementById('login-panel').style.display = 'block';
+  }
+
+  function knotsToKmh(knots) {
+    return Math.round((knots || 0) * 1.852);
+  }
+
+  function relativeTime(iso) {
+    if (!iso) return '—';
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const min = Math.round(diffMs / 60000);
+    if (min < 1) return 'agora mesmo';
+    if (min < 60) return `há ${min} min`;
+    const h = Math.round(min / 60);
+    if (h < 24) return `há ${h}h`;
+    return `há ${Math.round(h / 24)}d`;
+  }
+
+  function statusInfo(status) {
+    if (status === 'online') return { label: 'Online', cls: 'online' };
+    if (status === 'offline') return { label: 'Offline', cls: 'offline' };
+    return { label: 'Desconhecido', cls: 'unknown' };
+  }
+
+  async function loadData() {
+    hideError();
+    try {
+      const [devRes, posRes] = await Promise.all([
+        fetch(SERVER + '/api/devices', { headers: { 'Authorization': AUTH_HEADER, 'Accept': 'application/json' } }),
+        fetch(SERVER + '/api/positions', { headers: { 'Authorization': AUTH_HEADER, 'Accept': 'application/json' } })
+      ]);
+
+      if (!devRes.ok || !posRes.ok) throw new Error('Falha ao buscar dados do servidor.');
+
+      const devices = await devRes.json();
+      const positions = await posRes.json();
+
+      const posByDevice = {};
+      positions.forEach(p => { posByDevice[p.deviceId] = p; });
+
+      renderStats(devices);
+      renderGrid(devices, posByDevice);
+
+      document.getElementById('last-update-label').textContent =
+        'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+    } catch (err) {
+      showError(err.message || 'Erro ao atualizar dados.');
+    }
+  }
+
+  function renderStats(devices) {
+    const online = devices.filter(d => d.status === 'online').length;
+    const total = devices.length;
+    const el = document.getElementById('stats');
+    el.innerHTML = `
+      <div class="stat-pill"><span class="dot green"></span> ${online} online</div>
+      <div class="stat-pill"><span class="dot gray"></span> ${total - online} offline</div>
+      <div class="stat-pill">${total} veículo${total === 1 ? '' : 's'}</div>
+    `;
+  }
+
+  function renderGrid(devices, posByDevice) {
+    const grid = document.getElementById('grid');
+
+    if (!devices.length) {
+      grid.innerHTML = `<div class="empty-state">Nenhum veículo encontrado nessa conta.</div>`;
+      return;
+    }
+
+    grid.innerHTML = devices.map(d => {
+      const pos = posByDevice[d.id];
+      const st = statusInfo(d.status);
+      const speed = pos ? knotsToKmh(pos.speed) : null;
+      const address = pos && pos.address ? pos.address : null;
+      const lat = pos ? pos.latitude : null;
+      const lon = pos ? pos.longitude : null;
+
+      return `
+        <div class="veh-card">
+          <div class="veh-top">
+            <div>
+              <p class="veh-name">${escapeHtml(d.name || 'Sem nome')}</p>
+              <p class="veh-id">ID ${d.uniqueId || d.id}</p>
+            </div>
+            <span class="badge ${st.cls}">${st.label}</span>
+          </div>
+
+          <div class="veh-row">
+            <span class="ic">🕒</span> Última atualização: <b>${relativeTime(d.lastUpdate)}</b>
+          </div>
+          ${speed !== null ? `
+          <div class="veh-row">
+            <span class="ic">💨</span> Velocidade: <b>${speed} km/h</b>
+          </div>` : ''}
+          ${address ? `
+          <div class="veh-row">
+            <span class="ic">📍</span> <b>${escapeHtml(address)}</b>
+          </div>` : ''}
+
+          ${lat && lon ? `
+          <div class="veh-footer">
+            <a class="map-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${lat},${lon}">
+              Ver no mapa ↗
+            </a>
+          </div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') connect();
+  });
+</script>
+</body>
+</html>
